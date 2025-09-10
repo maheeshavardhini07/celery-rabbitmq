@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # For Celery
+      - "15672:15672"   # RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  fastapi_app:
+    build: .
+    container_name: fastapi_app
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rabbitmq
+
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A tasks worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - rabbitmq
+
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    command: celery -A tasks beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - rabbitmq
